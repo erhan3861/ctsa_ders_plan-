@@ -118,7 +118,6 @@
         let secilenStandartlar = new Set();
         let secilenTeknolojiler = new Set();
 
-        // K12 Müfredatında En Çok Kullanılan 10 Teknoloji Listesi
         const teknolojiler = [
             "Scratch", "Tinkercad (3D/Elektronik)", "Python", "Web Tasarımı (HTML/CSS/JS)", 
             "Yapay Zeka (AI)", "Görüntü İşleme", "Arduino & Robotik", 
@@ -126,14 +125,11 @@
         ];
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Teknolojileri ekrana bas
             teknolojileriYukle();
 
             fetch('file.csv')
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error("'file.csv' kaynak dosyası klasörde bulunamadı ya da sunucu kapalı!");
-                    }
+                    if (!response.ok) throw new Error("'file.csv' bulunamadı!");
                     return response.text();
                 })
                 .then(csvMetni => {
@@ -142,8 +138,20 @@
                         delimiter: ";",
                         skipEmptyLines: true,
                         complete: function(results) {
-                            if(results.data.length > 0 && results.data[0].Sınıflar) {
-                                veriYuklemeBasarili(results.data);
+                            // VERİ TEMİZLEME AŞAMASI (Bug'ı çözen kısım)
+                            const temizVeri = results.data.map(satir => {
+                                let temizSatir = {};
+                                Object.keys(satir).forEach(anahtar => {
+                                    // CSV'deki gizli BOM karakterlerini ve boşlukları siler
+                                    let temizAnahtar = anahtar.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+                                    let deger = satir[anahtar];
+                                    temizSatir[temizAnahtar] = (typeof deger === 'string') ? deger.trim() : deger;
+                                });
+                                return temizSatir;
+                            });
+
+                            if(temizVeri.length > 0 && temizVeri[0].Sınıflar !== undefined) {
+                                veriYuklemeBasarili(temizVeri);
                             } else {
                                 showError("CSV yapısı hatalı! 'Sınıflar' sütunu bulunamadı.");
                             }
@@ -153,12 +161,9 @@
                         }
                     });
                 })
-                .catch(error => {
-                    showError("Hata: " + error.message);
-                });
+                .catch(error => showError("Hata: " + error.message));
         });
 
-        // Teknolojileri görseldeki gibi etkileşimli çiplere dönüştürür
         function teknolojileriYukle() {
             const container = document.getElementById("techContainer");
             teknolojiler.forEach(tech => {
@@ -267,8 +272,9 @@
 
             let filtrelenmis = tumVeriler.filter(item => item.Sınıflar === secilenSinif && item.Kavram === secilenKavram);
 
+            // Buradaki eşleşme artık tertemiz çalışacak
             if (secilenAltKavram) {
-                filtrelenmis = filtrelenmis.filter(item => item["Alt Kavram"] === secilenAltKavram);
+                filtrelenmis = filtrelenmis.filter(item => item["Alt_Kavram"] === secilenAltKavram);
             }
 
             kartlariListele(filtrelenmis);
@@ -285,7 +291,8 @@
 
             veriler.forEach(item => {
                 const id = item.Tanımlayıcı;
-                const standartMetni = item.Standart;
+                // Sütun adı hatalarına karşı toleranslı okuma
+                const standartMetni = item.Standart || item.standart || item.Standartlar;
                 const altKavramEtiketi = item["Alt Kavram"] || "Genel";
 
                 if(!standartMetni) return;
@@ -296,7 +303,7 @@
                 
                 card.innerHTML = `
                     <div class="flex items-center justify-between font-bold text-indigo-700">
-                        <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">📌 Kod: ${id}</span>
+                        <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">📌 Kod: ${id || 'Kayıtsız'}</span>
                         <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-medium">${altKavramEtiketi}</span>
                     </div>
                     <div class="text-slate-700 font-medium leading-relaxed mt-1">${standartMetni}</div>
@@ -332,34 +339,35 @@
 
             let standartlarDökümü = "";
             secilenSatirlar.forEach((item, idx) => {
-                standartlarDökümü += `\n${idx + 1}. [Kod: ${item.Tanımlayıcı}] ${item.Standart}\n   - Resmi Açıklama: ${item.Açıklama}\n   - Uygulama Alanı: ${item.Uygulama}\n   - Alt Uygulama Detayı: ${item['Alt Uygulama-1'] || 'Mevcut Değil'}\n`;
+                const aciklama = item.Açıklama || item.Aciklama || "Belirtilmemiş";
+                const altUyg = item['Alt Uygulama-1'] || 'Mevcut Değil';
+                standartlarDökümü += `\n${idx + 1}. [Kod: ${item.Tanımlayıcı}] ${item.Standart}\n   - Resmi Açıklama: ${aciklama}\n   - Alt Uygulama Detayı: ${altUyg}\n`;
             });
 
             const nihaiPrompt = `Sen CSTA standartlarına tam hakim, uzman bir Bilgisayar Bilimleri Öğretim Tasarımcısısın.
-Aşağıda yer alan ve doğrudan resmi müfredat tablomdan seçilen kazanım ve standart detaylarına tamamen bağlı kalarak, pedagojik yönü güçlü, yaratıcı ve eksiksiz bir günlük ders planı tasarla.
+Aşağıda yer alan müfredat tablomdan seçilen kazanım detaylarına tamamen bağlı kalarak, yaratıcı ve eksiksiz bir günlük ders planı tasarla.
 
 ### 📋 MÜFREDAT VE KAZANIM DETAYLARI:
-- **Sınıf Seviyesi / Yaş Grubu:** ${sinif}
+- **Sınıf Seviyesi:** ${sinif}
 - **CSTA Ana Kavramı:** ${kavram}
 - **CSTA Alt Kavramı:** ${altKavram || "Tümü / Genel"}
 
-#### 🎯 HEDEFLENEN CSTA STANDARTLARI VE SÜREÇ DETAYLARI:
+#### 🎯 HEDEFLENEN CSTA STANDARTLARI:
 ${standartlarDökümü}
 
-### 🛠️ KULLANILACAK TEKNOLOJİK ARAÇ / PLATFORM:
-- Bu ders planının ana odağında, uygulamalı faaliyet ve projelerde doğrudan **[ ${techDöküm} ]** teknolojisi/araçları kullanılmalıdır. Etkinliği ve örnekleri bu altyapıya göre kurgula.
+### 🛠️ KULLANILACAK TEKNOLOJİK ARAÇ:
+- Bu ders planının ana odağında, uygulamalı faaliyet ve projelerde doğrudan **[ ${techDöküm} ]** teknolojisi kullanılmalıdır.
 
-### ⚙️ ÖĞRETMENİN ÖZEL TALİMATLARI & SINIF ŞARTLARI:
-${talimat ? talimat : "Herhangi bir özel şart belirtilmemiştir. Belirtilen teknolojilere uygun standart laboratuvar akışı kurgula."}
+### ⚙️ ÖĞRETMENİN ÖZEL TALİMATLARI:
+${talimat ? talimat : "Özel bir şart belirtilmemiştir. Belirtilen teknolojilere uygun bir akış kurgula."}
 
-### 📝 SENDEN BEKLENEN DERS PLANI ÇIKTI FORMATI:
-Lütfen ders planını temiz bir Türkçe ile, öğretmenin doğrudan çıktı alıp sınıfa girebileceği akıcılıkta ve aşağıdaki ana başlıkları içeren bir Markdown yapısında oluştur:
-
-1. **Dersin Künyesi:** Sınıf düzeyi, süre, hedeflenen teknolojiler ve standartların ders ana amacıyla olan ilişkisi.
-2. **Öğrenme Hedefleri:** Öğrenciler ders sonunda seçilen teknolojiyi kullanarak hangi CSTA becerisini kazanmış olacak? (Ölçülebilir pratik fiillerle yaz).
-3. **Gerekli Materyaller ve Ön Hazırlık:** Donanım, yazılım ve seçilen [ ${techDöküm} ] platformuna dair özel hazırlıklar.
-4. **Ders Akışı (Zaman Planlamalı):** Giriş, Keşfetme, Teknolojik Uygulama ve Ana Etkinlik, Kapanış.
-5. **Farklılaştırma (Diferansiasyon) ve Kapsayıcılık Önerileri.**`;
+### 📝 BEKLENEN DERS PLANI FORMATI:
+Lütfen ders planını temiz bir Markdown yapısında oluştur:
+1. **Dersin Künyesi:** Sınıf düzeyi, süre, hedeflenen teknolojiler.
+2. **Öğrenme Hedefleri:** Öğrenciler ders sonunda hangi beceriyi kazanmış olacak?
+3. **Gerekli Materyaller.**
+4. **Ders Akışı:** Giriş, Keşfetme, Teknolojik Uygulama ve Ana Etkinlik, Kapanış.
+5. **Farklılaştırma (Diferansiasyon) Önerileri.**`;
 
             document.getElementById("promptOutput").innerText = nihaiPrompt;
             document.getElementById("promptBox").classList.remove("hidden");
@@ -369,7 +377,7 @@ Lütfen ders planını temiz bir Türkçe ile, öğretmenin doğrudan çıktı a
         function kopyalaPrompt() {
             const promptMetni = document.getElementById("promptOutput").innerText;
             navigator.clipboard.writeText(promptMetni).then(() => {
-                alert("Prompt panoya kopyalandı! Şimdi doğrudan Gemini'a yapıştırıp ders planınızı alabilirsiniz.");
+                alert("Prompt panoya kopyalandı! Şimdi doğrudan Gemini'a yapıştırabilirsiniz.");
             });
         }
     </script>
