@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSTA Dinamik Ders Planı Hazırlayıcı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body class="bg-purple-50/40 p-4 md:p-10 font-sans text-slate-800">
+
+    <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-purple-100">
+        
+        <div class="flex items-center gap-3 mb-2">
+            <div class="p-2.5 bg-indigo-100 text-indigo-700 rounded-xl shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l2 2h5a2 2 0 012 2v12a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">Günlük Ders Planı</h1>
+                <p class="text-xs text-slate-500">Müfredat içeriğinize uygun günlük ders planları ve yapay zeka emirleri oluşturun.</p>
+            </div>
+        </div>
+
+        <hr class="my-6 border-slate-100" />
+
+        <div id="loadingStatus" class="mb-6 p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm">
+            <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            'file.csv' veri kaynağı arka planda taranıyor, lütfen bekleyin...
+        </div>
+
+        <div id="errorStatus" class="hidden mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium"></div>
+
+        <div id="mainForm" class="opacity-40 pointer-events-none transition-opacity duration-300">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <div class="space-y-6">
+                    <h2 class="font-bold text-base text-slate-900 flex items-center gap-2">
+                        <span class="w-1.5 h-5 bg-indigo-600 rounded-full"></span> Müfredat Bilgileri <span class="text-red-500">*</span>
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Sınıf Seviyesi</label>
+                            <select id="sinifSelect" onchange="sinifFiltrele()" class="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-sm font-medium transition-all cursor-pointer">
+                                <option value="">Seçiniz...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Ders / Ana Kavram</label>
+                            <select id="kavramSelect" onchange="kavramFiltrele()" disabled class="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-100 text-sm font-medium transition-all cursor-pointer disabled:opacity-60">
+                                <option value="">Önce sınıf seçin...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Alt Kavram</label>
+                        <select id="altKavramSelect" onchange="altKavramFiltrele()" disabled class="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-100 text-sm font-medium transition-all cursor-pointer disabled:opacity-60">
+                            <option value="">Önce ana kavram seçin...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Hedeflenen CSTA Standartları & Kazanımlar <span class="text-red-500">*</span></label>
+                        <div id="chipsContainer" class="flex flex-col gap-3 p-3 max-h-[380px] overflow-y-auto border border-slate-200 rounded-xl bg-slate-50/50">
+                            <span class="text-xs text-slate-400 italic m-auto p-4">Kazanım kartlarını listelemek için filtreleri seçin...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6 flex flex-col justify-between">
+                    <div>
+                        <h2 class="font-bold text-base text-slate-900 flex items-center gap-2">
+                            <span class="w-1.5 h-5 bg-purple-600 rounded-full"></span> Ek Bilgiler (Opsiyonel)
+                        </h2>
+                        
+                        <div class="mt-4">
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Öğrenme Yöntemleri ve Özel Talimatlar</label>
+                            <textarea id="ozelTalimatlar" rows="5" class="w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 bg-white placeholder-slate-400 text-sm shadow-inner resize-none" placeholder="Örn: Sınıfta internet ve bilgisayar yok, tamamen kağıt-kalem tabanlı (unplugged) ilerlesin. Kodlama mantığı Scratch ile kurgulansın..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="promptBox" class="bg-slate-900 text-slate-100 rounded-2xl p-5 shadow-2xl border border-slate-800 hidden transition-all duration-300">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Kopyalamaya Hazır AI Promptu
+                            </h3>
+                            <button onclick="kopyalaPrompt()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-md">Kopyala</button>
+                        </div>
+                        <div id="promptOutput" class="text-xs bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-56 overflow-y-auto font-mono whitespace-pre-line text-slate-300 leading-relaxed select-all"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+                <button onclick="promptUret()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg shadow-indigo-100 hover:shadow-xl flex items-center gap-2">
+                    🚀 AI Ders Planı Promptu Üret
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let tumVeriler = [];
+        let secilenStandartlar = new Set(); // Tanımlayıcı (ID) kodlarını tutar
+
+        // Sayfa açıldığında klasördeki 'file.csv' dosyasını okur
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('file.csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("'file.csv' kaynak dosyası klasörde bulunamadı ya da sunucu kapalı!");
+                    }
+                    return response.text();
+                })
+                .then(csvMetni => {
+                    // PapaParse ile noktalı virgül (;) ayrımına göre hatasız ayıklama yapıyoruz
+                    Papa.parse(csvMetni, {
+                        header: true,
+                        delimiter: ";",
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            if(results.data.length > 0 && results.data[0].Sınıflar) {
+                                veriYuklemeBasarili(results.data);
+                            } else {
+                                showError("CSV yapısı hatalı! 'Sınıflar' sütunu bulunamadı. Lütfen doğru ayrıştırıcıyı kontrol edin.");
+                            }
+                        },
+                        error: function(err) {
+                            showError("Ayrıştırma Hatası: " + err.message);
+                        }
+                    });
+                })
+                .catch(error => {
+                    showError("Hata: " + error.message);
+                });
+        });
+
+        function showError(msg) {
+            document.getElementById("loadingStatus").classList.add("hidden");
+            const errBox = document.getElementById("errorStatus");
+            errBox.innerText = msg;
+            errBox.classList.remove("hidden");
+        }
+
+        function veriYuklemeBasarili(data) {
+            tumVeriler = data;
+            document.getElementById("loadingStatus").classList.add("hidden");
+            
+            // Kilitleri kaldır
+            const mainForm = document.getElementById("mainForm");
+            mainForm.classList.remove("opacity-40", "pointer-events-none");
+
+            // Sınıflar sütunundan benzersiz seviyeleri çek (K-2, 3-5 vb.)
+            const siniflar = [...new Set(data.map(item => item.Sınıflar))].filter(Boolean);
+            const sinifSelect = document.getElementById("sinifSelect");
+            
+            siniflar.forEach(s => {
+                sinifSelect.innerHTML += `<option value="${s}">${s}</option>`;
+            });
+        }
+
+        // Sınıf seçildiğinde Kavram alanını doldurur
+        function sinifFiltrele() {
+            const secilenSinif = document.getElementById("sinifSelect").value;
+            const kavramSelect = document.getElementById("kavramSelect");
+            const altKavramSelect = document.getElementById("altKavramSelect");
+            
+            kavramSelect.innerHTML = '<option value="">Seçiniz...</option>';
+            altKavramSelect.innerHTML = '<option value="">Önce kavram seçin...</option>';
+            altKavramSelect.disabled = true;
+            altKavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-100 text-sm transition-all";
+            document.getElementById("chipsContainer").innerHTML = '<span class="text-xs text-slate-400 italic m-auto p-4">Kazanım kartlarını listelemek için filtreleri seçin...</span>';
+            secilenStandartlar.clear();
+
+            if (!secilenSinif) {
+                kavramSelect.disabled = true;
+                kavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-100 text-sm transition-all";
+                return;
+            }
+
+            kavramSelect.disabled = false;
+            kavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-medium transition-all cursor-pointer";
+
+            const filtrelenmis = tumVeriler.filter(item => item.Sınıflar === secilenSinif);
+            const kavramlar = [...new Set(filtrelenmis.map(item => item.Kavram))].filter(Boolean);
+
+            kavramlar.forEach(k => {
+                kavramSelect.innerHTML += `<option value="${k}">${k}</option>`;
+            });
+        }
+
+        // Kavram seçildiğinde Alt Kavram alanını doldurur ve ilk kartları getirir
+        function kavramFiltrele() {
+            const secilenSinif = document.getElementById("sinifSelect").value;
+            const secilenKavram = document.getElementById("kavramSelect").value;
+            const altKavramSelect = document.getElementById("altKavramSelect");
+
+            altKavramSelect.innerHTML = '<option value="">Seçiniz (Tümü)...</option>';
+            secilenStandartlar.clear();
+
+            if (!secilenKavram) {
+                altKavramSelect.disabled = true;
+                altKavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-100 text-sm transition-all";
+                document.getElementById("chipsContainer").innerHTML = '<span class="text-xs text-slate-400 italic m-auto p-4">Kazanım kartlarını listelemek için filtreleri seçin...</span>';
+                return;
+            }
+
+            altKavramSelect.disabled = false;
+            altKavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-medium transition-all cursor-pointer";
+
+            const filtrelenmis = tumVeriler.filter(item => item.Sınıflar === secilenSinif && item.Kavram === secilenKavram);
+            const altKavramlar = [...new Set(filtrelenmis.map(item => item.Alt_Kavram))].filter(Boolean);
+
+            altKavramlar.forEach(ak => {
+                altKavramSelect.innerHTML += `<option value="${ak}">${ak}</option>`;
+            });
+
+            kartlariListele(filtrelenmis);
+        }
+
+        // Alt Kavram filtresine göre kartları daraltır
+        function altKavramFiltrele() {
+            const secilenSinif = document.getElementById("sinifSelect").value;
+            const secilenKavram = document.getElementById("kavramSelect").value;
+            const secilenAltKavram = document.getElementById("altKavramSelect").value;
+            secilenStandartlar.clear();
+
+            let filtrelenmis = tumVeriler.filter(item => item.Sınıflar === secilenSinif && item.Kavram === secilenKavram);
+
+            if (secilenAltKavram) {
+                filtrelenmis = filtrelenmis.filter(item => item.Alt_Kavram === secilenAltKavram);
+            }
+
+            kartlariListele(filtrelenmis);
+        }
+
+        // Uzun standart metinlerini seçilebilir şık blok kartlara dönüştürür
+        function kartlariListele(veriler) {
+            const container = document.getElementById("chipsContainer");
+            container.innerHTML = "";
+
+            if(veriler.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400 italic m-auto p-4">Kriterlere uygun standart bulunamadı.</span>`;
+                return;
+            }
+
+            veriler.forEach(item => {
+                const id = item.Tanımlayıcı;
+                const standartMetni = item.Standart;
+                const altKavramEtiketi = item.Alt_Kavram;
+
+                if(!standartMetni) return;
+
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50/40 hover:border-indigo-200 transition-all text-xs flex flex-col gap-1.5 shadow-sm border-l-4 border-l-indigo-500 cursor-pointer";
+                
+                card.innerHTML = `
+                    <div class="flex items-center justify-between font-bold text-indigo-700">
+                        <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md border border-indigo-100">📌 Kod: ${id}</span>
+                        <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-600 font-medium">${altKavramEtiketi}</span>
+                    </div>
+                    <div class="text-slate-700 font-medium leading-relaxed mt-1">${standartMetni}</div>
+                `;
+                
+                card.onclick = () => {
+                    if (secilenStandartlar.has(id)) {
+                        secilenStandartlar.delete(id);
+                        card.className = "w-full text-left p-3.5 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50/40 hover:border-indigo-200 transition-all text-xs flex flex-col gap-1.5 shadow-sm border-l-4 border-l-indigo-500 cursor-pointer";
+                    } else {
+                        secilenStandartlar.add(id);
+                        card.className = "w-full text-left p-3.5 rounded-xl border-indigo-600 bg-indigo-50/80 text-indigo-900 transition-all text-xs flex flex-col gap-1.5 shadow-md border-l-4 border-l-indigo-600 ring-4 ring-indigo-600/10 font-medium cursor-pointer";
+                    }
+                };
+
+                container.appendChild(card);
+            });
+        }
+
+        // Seçilen verileri süzüp yapay zeka promptunu (Talimatını) hazırlar
+        function promptUret() {
+            const sinif = document.getElementById("sinifSelect").value;
+            const kavram = document.getElementById("kavramSelect").value;
+            const altKavram = document.getElementById("altKavramSelect").value;
+            const talimat = document.getElementById("ozelTalimatlar").value;
+
+            if (!sinif || !kavram || secilenStandartlar.size === 0) {
+                alert("Lütfen Sınıf Seviyesi ve Kavram seçtikten sonra, en az bir adet Standart Kazanım kartına tıklayarak seçiminizi yapın!");
+                return;
+            }
+
+            // Seçilen kartların tüm satır verilerini tablodan ayıkla
+            const secilenSatirlar = tumVeriler.filter(item => secilenStandartlar.has(item.Tanımlayıcı));
+
+            let standartlarDökümü = "";
+            secilenSatirlar.forEach((item, idx) => {
+                standartlarDökümü += `\n${idx + 1}. [Kod: ${item.Tanımlayıcı}] ${item.Standart}\n   - Resmi Açıklama: ${item.Açıklama}\n   - Uygulama Alanı: ${item.Uygulama}\n   - Alt Uygulama Detayı: ${item['Alt Uygulama-1'] || 'Mevcut Değil'}\n`;
+            });
+
+            const nihaiPrompt = `Sen CSTA (Computer Science Teachers Association) standartlarına tam hakim, uzman bir Bilgisayar Bilimleri Öğretim Tasarımcısısın.
+Aşağıda yer alan ve doğrudan resmi müfredat tablomdan seçilen kazanım ve standart detaylarına tamamen bağlı kalarak, pedagojik yönü güçlü, yaratıcı ve eksiksiz bir günlük ders planı tasarla.
+
+### 📋 MÜFREDAT VE KAZANIM DETAYLARI:
+- **Sınıf Seviyesi / Yaş Arubu:** ${sinif}
+- **CSTA Ana Kavramı:** ${kavram}
+- **CSTA Alt Kavramı:** ${altKavram || "Tümü / Genel"}
+
+#### 🎯 HEDEFLENEN CSTA STANDARTLARI VE SÜREÇ DETAYLARI:
+${standartlarDökümü}
+
+### ⚙️ ÖĞRETMENİN ÖZEL TALİMATLARI & SINIF ŞARTLARI:
+${talimat ? talimat : "Herhangi bir özel şart belirtilmemiştir. Standart okul laboratuvarı şartlarına uygun bir ders planı kurgula."}
+
+### 📝 SENDEN BEKLENEN DERS PLANI ÇIKTI FORMATI:
+Lütfen ders planını temiz bir Türkçe ile, öğretmenin doğrudan çıktı alıp sınıfa girebileceği akıcılıkta ve aşağıdaki ana başlıkları içeren bir Markdown yapısında oluştur:
+
+1. **Dersin Künyesi:** Sınıf düzeyi, tahmini süre (Örn: 40+40 dk), seçilen standartların ders ana amacıyla olan ilişkisi.
+2. **Öğrenme Hedefleri:** Öğrenciler ders sonunda tam olarak hangi beceriyi kazanmış olacak? (Maddeler halinde ve ölçülebilir fiillerle yaz).
+3. **Gerekli Materyaller ve Ön Hazırlık:** Donanım, yazılım, basılı kağıtlar veya bilgisayarsız etkinlik materyalleri dökümü.
+4. **Ders Akışı (Adım Adım Zaman Planlamalı):**
+   - *Giriş ve Dikkat Çekme (İlk %20 Zaman):* Günlük hayattan örnekler, ön bilgileri canlandırma.
+   - *Keşfetme ve Ana Etkinlik (Zamanın %60'ı):* Seçilen CSTA standartlarını doğrudan tecrübe ettirecek pratik uygulama adımları.
+   - *Kapanış ve Özet (Son %20 Zaman):* Değerlendirme, sorular, çıkış bileti aktivitesi.
+5. **Farklılaştırma (Diferansiasyon) ve Kapsayıcılık:** Sınıf içindeki farklı öğrenme hızlarına veya öğretmenin belirttiği özel durumlara göre pedagojik uyarlama yönergeleri.`;
+
+            document.getElementById("promptOutput").innerText = nihaiPrompt;
+            document.getElementById("promptBox").classList.remove("hidden");
+            document.getElementById("promptBox").scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function kopyalaPrompt() {
+            const promptMetni = document.getElementById("promptOutput").innerText;
+            navigator.clipboard.writeText(promptMetni).then(() => {
+                alert("Prompt panoya kopyalandı! Şimdi doğrudan Gemini'a yapıştırıp ders planınızı alabilirsiniz.");
+            });
+        }
+    </script>
+</body>
+</html>
