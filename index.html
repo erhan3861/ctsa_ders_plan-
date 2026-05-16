@@ -250,7 +250,7 @@
             altKavramSelect.className = "w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-medium transition-all cursor-pointer";
 
             const filtrelenmis = tumVeriler.filter(item => item.Sınıflar === secilenSinif && item.Kavram === secilenKavram);
-            const altKavramlar = [...new Set(filtrelenmis.map(item => item["Alt Kavram"]))].filter(Boolean);
+            const altKavramlar = [...new Set(filtrelenmis.map(item => item["Alt_Kavram"]))].filter(Boolean);
 
             altKavramlar.forEach(ak => {
                 altKavramSelect.innerHTML += `<option value="${ak}">${ak}</option>`;
